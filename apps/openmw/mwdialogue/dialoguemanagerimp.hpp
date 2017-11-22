@@ -11,6 +11,7 @@
 #include <components/misc/stringops.hpp>
 
 #include "../mwworld/ptr.hpp"
+#include "SpeechRecognizerWrapper.hpp"
 
 #include "../mwscript/compilercontext.hpp"
 
@@ -35,6 +36,7 @@ namespace MWDialogue
             MWScript::CompilerContext mCompilerContext;
             std::ostream mErrorStream;
             Compiler::StreamErrorHandler mErrorHandler;
+            SpeechRecognizerWrapper mSpeechRecognizer;
 
             MWWorld::Ptr mActor;
             bool mTalkedTo;
@@ -57,6 +59,7 @@ namespace MWDialogue
             bool compile (const std::string& cmd, std::vector<Interpreter::Type_Code>& code, const MWWorld::Ptr& actor);
             void executeScript (const std::string& script, const MWWorld::Ptr& actor);
 
+            void SpeechCallback(ResponseCallback* callback, std::wstring resultText);
             void executeTopic (const std::string& topic, ResponseCallback* callback);
 
             const ESM::Dialogue* searchDialogue(const std::string& id);

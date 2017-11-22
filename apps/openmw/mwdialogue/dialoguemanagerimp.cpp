@@ -6,6 +6,9 @@
 #include <iterator>
 #include <list>
 #include <iostream>
+#include <regex>
+#include <sstream>
+#include <string>
 
 #include <components/esm/loaddial.hpp>
 #include <components/esm/loadinfo.hpp>
@@ -59,7 +62,9 @@ namespace MWDialogue
         mChoice = -1;
         mIsInChoice = false;
         mGoodbye = false;
-        mCompilerContext.setExtensions (&extensions);
+        mCompilerContext.setExtensions(&extensions);
+
+        mSpeechRecognizer.Initialize(true);
     }
 
     void DialogueManager::clear()
@@ -101,6 +106,36 @@ namespace MWDialogue
         }
     }
 
+    void DialogueManager::SpeechCallback(ResponseCallback* callback, std::wstring resultText)
+    {
+        if (isGoodbye())
+        {
+            return;
+        }
+
+        std::list<std::string> topics = this->getAvailableTopics();
+
+        //search the result text for topic keywords
+        for (std::list<std::string>::iterator it = topics.begin(); it != topics.end(); it++)
+        {
+            std::ostringstream regexString;
+            regexString << ".*" << *it << ".*";
+
+            std::regex expression(regexString.str());
+            std::string result(resultText.begin(), resultText.end());
+
+
+            if (std::regex_match(result, expression))
+            {
+                this->executeTopic(*it, callback);
+                break;
+            }
+        }
+
+        //mSpeechRecognizer.StartListening(SpeechCallback);
+
+    }
+
     bool DialogueManager::startDialogue (const MWWorld::Ptr& actor, ResponseCallback* callback)
     {
         updateGlobals();
@@ -117,6 +152,36 @@ namespace MWDialogue
         mIsInChoice = false;
         mGoodbye = false;
         mChoices.clear();
+
+        auto srCallback= [this, callback](std::wstring resultText)
+        {
+            if (isGoodbye())
+            {
+                return;
+            }
+
+            std::list<std::string> topics = this->getAvailableTopics();
+
+            //search the result text for topic keywords
+            for (std::list<std::string>::iterator it= topics.begin(); it != topics.end(); it++)
+            {
+                std::ostringstream regexString;
+                regexString << ".*" << *it << ".*";
+
+                std::regex expression(regexString.str(), std::regex_constants::icase);
+                std::string result (resultText.begin(), resultText.end());
+
+                if (std::regex_match(result, expression )  )
+                {
+                    this->executeTopic(*it, callback);
+                    break;
+                }
+            }
+        };
+
+        mSpeechRecognizer.RegisterForContinousResults(srCallback);
+
+        mSpeechRecognizer.StartContinuousListening();
 
         mActor = actor;
 
@@ -380,6 +445,9 @@ namespace MWDialogue
         }
         mPermanentDispositionChange = 0;
         mTemporaryDispositionChange = 0;
+
+        mSpeechRecognizer.UnRegisterForContinousResults();
+
     }
 
     void DialogueManager::questionAnswered (int answer, ResponseCallback* callback)
